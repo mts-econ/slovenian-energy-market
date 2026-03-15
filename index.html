@@ -585,6 +585,12 @@
         return `M${sx},${sy} Q${mx},${my} ${ex},${ey}`;
       });
 
+    sim.on("end", () => {
+      if (layoutLocked) {
+        nodes.forEach(d => { d.fx = d.x; d.fy = d.y; });
+      }
+    });
+
       linkLabels.attr("transform", d => {
         const mx = (d.source.x + d.target.x) / 2 - (d.target.y - d.source.y) * 0.01;
         const my = (d.source.y + d.target.y) / 2 + (d.target.x - d.source.x) * 0.01;
@@ -672,7 +678,7 @@
     });
 
     // ── LOCK & EXPORT ─────────────────────────────────────────────────────────
-    let layoutLocked = false;
+    let layoutLocked = true;
 
     document.getElementById("lockBtn").onclick = () => {
       layoutLocked = !layoutLocked;
@@ -694,6 +700,10 @@
         bar.textContent = "DRAG TO PAN · SCROLL TO ZOOM · CLICK NODE TO HIGHLIGHT";
       }
     };
+    
+    // Set initial locked appearance
+    document.getElementById("lockBtn").style.color = "#4fc3f7";
+    document.getElementById("infoBar").textContent = "LAYOUT LOCKED · DRAG STILL WORKS · CLICK ⚲ TO UNLOCK";
 
     document.getElementById("exportBtn").onclick = () => {
       // Build hardcoded node array with current x/y baked in as fx/fy
