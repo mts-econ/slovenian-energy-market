@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Energy Market State Ownership Network</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+    :root {
+      --bg: #0a0d12;
+      --surface: #111620;
+      --border: #1e2535;
+      --accent: #4fc3f7;
+      --accent2: #7c5cbf;
+      --accent3: #2dd4a0;
+      --text: #e0e8f4;
+      --muted: #5a6a82;
+      --node-state: #1a3a5c;
+      --node-state-stroke: #4fc3f7;
+      --node-sub: #1a2e1a;
+      --node-sub-stroke: #2dd4a0;
+      --node-sc: #2e1a3a;
+      --node-sc-stroke: #7c5cbf;
+      --node-pc: #8b5f00;
+      --node-pc-stroke: #ffb108;
+      --arrow: #4fc3f7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      padding: 20px 32px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 24px;
+      background: var(--surface);
+      z-index: 10;
+    }
+
+    header h1 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    header span {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .legend {
+      margin-left: auto;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid;
+    }
+
+    #canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    svg:active {
+      cursor: grabbing;
+    }
+
+    .link {
+      fill: none;
+      stroke: var(--arrow);
+      stroke-opacity: 0.5;
+      stroke-width: 1.5;
+    }
+
+    .link-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      fill: var(--accent);
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .node circle {
+      stroke-width: 2;
+      cursor: pointer;
+      transition: filter 0.2s;
+    }
+
+    .node circle:hover {
+      filter: brightness(1.4);
+    }
+
+    .node.selected circle {
+      stroke-width: 3;
+      filter: brightness(1.3);
+    }
+
+    .node-label {
+      font-family: 'Syne', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      fill: var(--text);
+      text-anchor: middle;
+      pointer-events: none;
+      dominant-baseline: central;
+    }
+
+    .node-sublabel {
+      font-family: 'Syne', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      fill: var(--text);
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .tooltip {
+      position: absolute;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 0.72rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      max-width: 220px;
+      z-index: 99;
+    }
+
+    .tooltip.visible {
+      opacity: 1;
+    }
+
+    .tooltip strong {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.82rem;
+      display: block;
+      margin-bottom: 6px;
+      color: var(--accent);
+    }
+
+    .tooltip .tt-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .tooltip .tt-row span:last-child {
+      color: var(--text);
+    }
+
+    .controls {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .controls button {
+      width: 32px;
+      height: 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 1.1rem;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+
+    .controls button:hover {
+      background: var(--border);
+    }
+
+    .info-bar {
+      position: absolute;
+      bottom: 20px;
+      left: 24px;
+      font-size: 0.62rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    /* arrow marker */
+    #arrowhead path {
+      fill: var(--arrow);
+    }
+
+    #arrowhead-dim path {
+      fill: #2a3a50;
+    }
+
+    .link.dimmed {
+      stroke: #1e2a38;
+      stroke-opacity: 0.3;
+    }
+
+    .node.dimmed circle {
+      opacity: 0.25;
+    }
+
+    .node.dimmed text {
+      opacity: 0.25;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>Energy Market State Ownership Network</h1>
+    <span>Directional equity connections · click node to explore</span>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#1a3a5c;border-color:#4fc3f7"></div>
+        STATE ENTITY
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#1a2e1a;border-color:#2dd4a0"></div>
+        SUBSIDIARY
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#2e1a3a;border-color:#7c5cbf"></div>
+        STATE COMPANY
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#8b5f00;border-color:#ffb108"></div>
+        PUBLIC COMPANY (SEMI-PRIVATE)
+      </div>
+    </div>
+  </header>
+
+  <div id="canvas-wrap">
+    <svg id="svg"></svg>
+    <div class="tooltip" id="tooltip"></div>
+    <div class="controls">
+      <button id="zoomIn">+</button>
+      <button id="zoomOut">−</button>
+      <button id="reset" title="Reset view">⟳</button>
+      <button id="lockBtn" title="Lock / unlock all node positions">⚲</button>
+      <button id="exportBtn" title="Export positions to console">↓</button>
+    </div>
+    <div class="info-bar" id="infoBar">DRAG TO PAN · SCROLL TO ZOOM · CLICK NODE TO HIGHLIGHT</div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script>
+    // ── DATA ───────────────────────────────────────────────────────────────────
+    // Edit nodes and links below to customize the chart.
+    // node.type: "state" | "subsidiary" | "sc" | "pc"
+    // node.size: bubble radius (relative; larger = more prominent)
+    // link.ownership: percentage (0–100)
+
+    const nodes = [
+      { id: "RS", label: "Republika \n Slovenija", type: "state", size: 80, fx_offset: 627.3, fy_offset: 584.2 },
+      { id: "SDH", label: "SDH", type: "sc", size: 65, fx_offset: 203.9, fy_offset: 62.2 },
+      { id: "KD", label: "Kapitalska \n Družba", type: "sc", size: 65, fx_offset: 917.4, fy_offset: -408.1 },
+      { id: "ZPIZ", label: "ZPIZ", type: "state", size: 65, fx_offset: 926.6, fy_offset: 651.4 },
+      { id: "JHLJ", label: "JH Ljubljana", type: "state", size: 45, fx_offset: 855.5, fy_offset: 482.7 },
+      { id: "GEN", label: "GEN Energija", type: "sc", size: 60, fx_offset: -258, fy_offset: 137.1 },
+      { id: "GEN-EL", label: "GEN-EL", type: "subsidiary", size: 30, fx_offset: -302.8, fy_offset: -278.6 },
+      { id: "GEN-I", label: "GEN-I", type: "subsidiary", size: 40, fx_offset: -491.8, fy_offset: -274.9 },
+      { id: "HSE", label: "HSE", type: "sc", size: 60, fx_offset: 93.6, fy_offset: 491.7 },
+      { id: "DEM", label: "DEM", type: "subsidiary", size: 30, fx_offset: -143.8, fy_offset: 286.9 },
+      { id: "SENG", label: "SENG", type: "subsidiary", size: 30, fx_offset: -431.4, fy_offset: 326.6 },
+      { id: "HESS", label: "HESS", type: "subsidiary", size: 30, fx_offset: -308.3, fy_offset: 709.3 },
+      { id: "TEŠ", label: "TEŠ", type: "subsidiary", size: 30, fx_offset: 393.6, fy_offset: 541.2 },
+      { id: "PV", label: "P. Velenje", type: "subsidiary", size: 30, fx_offset: 327.4, fy_offset: 629.4 },
+      { id: "SEL", label: "SEL", type: "subsidiary", size: 30, fx_offset: -548.8, fy_offset: 376 },
+      { id: "SSE", label: "SSE", type: "subsidiary", size: 30, fx_offset: -881.9, fy_offset: 532.3 },
+      { id: "TEB", label: "TE Brestanica", type: "subsidiary", size: 30, fx_offset: -780.3, fy_offset: 261 },
+      { id: "NEK", label: "NE Krško", type: "subsidiary", size: 40, fx_offset: -137.2, fy_offset: 1.1 },
+      { id: "SE", label: "Soener-\ngetika", type: "subsidiary", size: 30, fx_offset: -161.3, fy_offset: -172.8 },
+      { id: "PETROL", label: "Petrol", type: "pc", size: 50, fx_offset: 96, fy_offset: -236 },
+      { id: "SAVA RE", label: "Sava Re", type: "pc", size: 50, fx_offset: 211.7, fy_offset: -585.4 },
+      { id: "MODRA", label: "Modra \n Zavarovalnica", type: "subsidiary", size: 50, fx_offset: 663.2, fy_offset: -700.4 },
+      { id: "CINK", label: "Cinkarna Celje", type: "pc", size: 50, fx_offset: 456.4, fy_offset: -456.9 },
+      { id: "TRIGLAV", label: "Triglav \n Zavarovalnica", type: "pc", size: 50, fx_offset: 1129.5, fy_offset: 238.1 },
+      { id: "GE", label: "Gorenjske \n Elektrarne", type: "subsidiary", size: 30, fx_offset: -469, fy_offset: 19.4 },
+      { id: "SAŠA", label: "SAŠA", type: "subsidiary", size: 30, fx_offset: 10.8, fy_offset: 635.7 },
+      { id: "ECE", label: "ECE", type: "subsidiary", size: 30, fx_offset: 220.3, fy_offset: 686.9 },
+      { id: "E+", label: "Energija +", type: "subsidiary", size: 30, fx_offset: 106.1, fy_offset: 684.4 },
+      { id: "EE", label: "Elektro \n Energija", type: "subsidiary", size: 30, fx_offset: -743.3, fy_offset: -276.2 },
+      { id: "GENI-S", label: "GEN-I \n Sonce", type: "subsidiary", size: 30, fx_offset: -635.7, fy_offset: -356.5 },
+      { id: "GENI-E", label: "GEN-I \n ESCO", type: "subsidiary", size: 30, fx_offset: -705.1, fy_offset: -174.3 },
+      { id: "EC", label: "Elektro \n Celje", type: "subsidiary", size: 40, fx_offset: 488.5, fy_offset: -218.7 },
+      { id: "EL", label: "Elektro \n Ljubljana", type: "subsidiary", size: 40, fx_offset: 654.1, fy_offset: 67 },
+      { id: "EM", label: "Elektro \n Meribor", type: "subsidiary", size: 40, fx_offset: 593.7, fy_offset: -26.8 },
+      { id: "EG", label: "Elektro \n Gorenjska", type: "subsidiary", size: 40, fx_offset: 544.8, fy_offset: -120.5 },
+      { id: "EP", label: "Elektro \n Primorska", type: "subsidiary", size: 40, fx_offset: 731.6, fy_offset: 163.1 },
+      { id: "E3", label: "E3", type: "subsidiary", size: 40, fx_offset: 55.3, fy_offset: -406.6 },
+      { id: "EnLJ", label: "Energetika LJ", type: "subsidiary", size: 40, fx_offset: 948.8, fy_offset: 345.5 }
+    ];
+
+    const links = [
+
+      { source: "RS", target: "SDH", ownership: 0 },
+      { source: "RS", target: "KD", ownership: 0 },
+      { source: "RS", target: "ZPIZ", ownership: 0 },
+      { source: "RS", target: "JHLJ", ownership: 0 },
+
+      { source: "SDH", target: "GEN", ownership: 100 },
+      { source: "GEN", target: "GEN-EL", ownership: 50 },
+      { source: "GEN", target: "GEN-I", ownership: 50 },
+      { source: "GEN", target: "SEL", ownership: 100 },
+      { source: "GEN", target: "TEB", ownership: 100 },
+      { source: "GEN", target: "NEK", ownership: 50 },
+      { source: "GEN", target: "SSE", ownership: 10 },
+      { source: "SEL", target: "SSE", ownership: 30 },
+      { source: "GEN-EL", target: "GEN-I", ownership: 50 },
+      { source: "GEN-I", target: "GEN-EL", ownership: 50 },
+      { source: "GEN", target: "GE", ownership: 26 },
+      { source: "SEL", target: "GE", ownership: 74 },
+      { source: "GEN-I", target: "EE", ownership: 100 },
+      { source: "GEN-I", target: "GENI-S", ownership: 100 },
+      { source: "GEN-I", target: "GENI-E", ownership: 100 },
+      { source: "GEN", target: "HESS", ownership: 33.5 },
+
+      { source: "SDH", target: "HSE", ownership: 100 },
+      { source: "HSE", target: "DEM", ownership: 100 },
+      { source: "HSE", target: "SENG", ownership: 100 },
+      { source: "HSE", target: "HESS", ownership: 15.4 },
+      { source: "DEM", target: "HESS", ownership: 30.8 },
+      { source: "SENG", target: "HESS", ownership: 2.8 },
+      { source: "TEB", target: "HESS", ownership: 2.8 },
+      { source: "SEL", target: "HESS", ownership: 14.7 },
+      { source: "HSE", target: "SE", ownership: 25 },
+      { source: "PETROL", target: "SE", ownership: 25 },
+      { source: "GE", target: "SE", ownership: 25 },
+      { source: "HSE", target: "TEŠ", ownership: 100 },
+      { source: "HSE", target: "PV", ownership: 100 },
+      { source: "HSE", target: "SSE", ownership: 60 },
+      { source: "HSE", target: "SAŠA", ownership: 100 },
+      { source: "HSE", target: "ECE", ownership: 100 },
+      { source: "HSE", target: "E+", ownership: 100 },
+
+      { source: "SDH", target: "PETROL", ownership: 23.5 },
+      { source: "SDH", target: "SAVA RE", ownership: 35 },
+      { source: "MODRA", target: "SAVA RE", ownership: 5.7 },
+      { source: "KD", target: "SAVA RE", ownership: 1.5 },
+      { source: "SDH", target: "CINK", ownership: 25 },
+      { source: "MODRA", target: "CINK", ownership: 20 },
+      { source: "SDH", target: "TRIGLAV", ownership: 28 },
+      { source: "ZPIZ", target: "TRIGLAV", ownership: 35 },
+      { source: "KD", target: "TRIGLAV", ownership: 0.2 },
+      { source: "KD", target: "CINK", ownership: 0.1 },
+
+
+      { source: "SDH", target: "EC", ownership: 79.5 },
+      { source: "SDH", target: "EL", ownership: 79.5 },
+      { source: "SDH", target: "EM", ownership: 79.9 },
+      { source: "SDH", target: "EG", ownership: 81 },
+      { source: "SDH", target: "EP", ownership: 79.6 },
+      { source: "KD", target: "PETROL", ownership: 8.4 },
+      { source: "KD", target: "EC", ownership: 0.8 },
+      { source: "KD", target: "EL", ownership: 0.5 },
+      { source: "KD", target: "EM", ownership: 1.6 },
+      { source: "KD", target: "EG", ownership: 3.5 },
+      { source: "KD", target: "EP", ownership: 2 },
+      { source: "PETROL", target: "E3", ownership: 100 },
+
+      { source: "JHLJ", target: "EnLJ", ownership: 100 },
+
+      { source: "KD", target: "MODRA", ownership: 100 },
+
+      { source: "SAVA RE", target: "EC", ownership: 1.2 },
+      { source: "CINK", target: "EC", ownership: 0.7 },
+      { source: "TRIGLAV", target: "EL", ownership: 2.7 },
+      { source: "TRIGLAV", target: "EP", ownership: 6 },
+
+
+      // advisory link; ownership=0 → dashed
+    ];
+
+    // ── STYLES MAP ───────────────────────────────────────────────────────────
+    const typeStyle = {
+      state: { fill: "#1a3a5c", stroke: "#4fc3f7" },
+      subsidiary: { fill: "#1a2e1a", stroke: "#2dd4a0" },
+      sc: { fill: "#2e1a3a", stroke: "#7c5cbf" },
+      pc: { fill: "#8b5f00", stroke: "#ffb108" },
+    };
+
+    // ── SVG SETUP ────────────────────────────────────────────────────────────
+    const svgEl = document.getElementById("svg");
+    const wrap = document.getElementById("canvas-wrap");
+    let W = wrap.clientWidth, H = wrap.clientHeight;
+
+    const svg = d3.select(svgEl)
+      .attr("viewBox", `0 0 ${W} ${H}`);
+
+    // Defs: arrow markers
+    const defs = svg.append("defs");
+
+    function makeMarker(id, color, size = 6) {
+      defs.append("marker")
+        .attr("id", id)
+        .attr("viewBox", "0 -4 10 8")
+        .attr("refX", 10)
+        .attr("refY", 0)
+        .attr("markerWidth", size)
+        .attr("markerHeight", size)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-4L10,0L0,4Z")
+        .attr("fill", color);
+    }
+    makeMarker("arrow", "#4fc3f7");
+    makeMarker("arrow-dim", "#1e2a38");
+    makeMarker("arrow-green", "#2dd4a0");
+    makeMarker("arrow-purple", "#7c5cbf");
+    makeMarker("arrow-gold", "#ffb108")
+
+    // Zoom/pan layer
+    const gZoom = svg.append("g").attr("class", "zoom-layer");
+
+    const zoom = d3.zoom()
+      .scaleExtent([0.3, 3])
+      .on("zoom", e => gZoom.attr("transform", e.transform));
+
+    svg.call(zoom);
+
+    // ── FORCE SIMULATION ─────────────────────────────────────────────────────
+    const sim = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink(links).id(d => d.id).distance(d => {
+        return 150 + (d.source.size || 10 + 50) + (d.target.size || 10);
+      }).strength(0.1))
+      .force("charge", d3.forceManyBody().strength(-200))
+      .force("center", d3.forceCenter(W / 2, H / 2))
+      .force("collide", d3.forceCollide(d => (d.size || 30)))
+      .alphaDecay(0.06);
+
+    nodes.forEach(d => { if (d.fx_offset !== undefined) { d.fx = d.fx_offset + W / 2; d.fy = d.fy_offset + H / 2; } });
+
+    // ── DRAW LINKS ───────────────────────────────────────────────────────────
+    const linkGroup = gZoom.append("g").attr("class", "links");
+
+    const linkSel = linkGroup.selectAll("g")
+      .data(links)
+      .join("g")
+      .attr("class", "link-group");
+
+    const paths = linkSel.append("path")
+      .attr("class", "link")
+      .attr("stroke-dasharray", d => d.ownership === 0 ? "4,4" : null)
+      .attr("marker-end", d => {
+        if (d.ownership === 0) return "url(#arrow-dim)";
+        const tType = nodes.find(n => n.id === (d.target.id || d.target))?.type;
+        if (tType === "subsidiary") return "url(#arrow-green)";
+        if (tType === "sc") return "url(#arrow-purple)";
+        if (tType === "pc") return "url(#arrow-gold)";
+        return "url(#arrow)";
+      })
+      .attr("stroke", d => {
+        if (d.ownership === 0) return "#1e2a38";
+        const tType = nodes.find(n => n.id === (d.target.id || d.target))?.type;
+        if (tType === "subsidiary") return "#2dd4a0";
+        if (tType === "sc") return "#7c5cbf";
+        if (tType === "pc") return "#ffb108";
+        return "#4fc3f7";
+      });
+
+    const linkLabels = linkSel.append("text")
+      .attr("class", "link-label")
+      .text(d => d.ownership > 0 ? d.ownership + "%" : "")
+      .attr("fill", d => {
+        const tType = nodes.find(n => n.id === (d.target.id || d.target))?.type;
+        if (tType === "subsidiary") return "#2dd4a0";
+        if (tType === "sc") return "#7c5cbf";
+        if (tType === "pc") return "#ffb108";
+        return "#4fc3f7";
+      });
+
+    // ── DRAW NODES ───────────────────────────────────────────────────────────
+    const nodeGroup = gZoom.append("g").attr("class", "nodes");
+
+    const nodeSel = nodeGroup.selectAll("g")
+      .data(nodes)
+      .join("g")
+      .attr("class", "node")
+      .call(d3.drag()
+        .on("start", (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+        .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
+        .on("end", (e, d) => { if (!e.active) sim.alphaTarget(0); if (!layoutLocked) { d.fx = null; d.fy = null; } })
+      )
+      .on("click", handleClick)
+      .on("mousemove", handleMouseMove)
+      .on("mouseleave", () => tooltip.classList.remove("visible"));
+
+    // Glow circle (subtle halo)
+    nodeSel.append("circle")
+      .attr("r", d => d.size + 10)
+      .attr("fill", d => typeStyle[d.type].stroke)
+      .attr("opacity", 0.06);
+
+    // Main circle
+    nodeSel.append("circle")
+      .attr("r", d => d.size)
+      .attr("fill", d => typeStyle[d.type].fill)
+      .attr("stroke", d => typeStyle[d.type].stroke);
+
+    // Label (multi-line support)
+    nodeSel.each(function (d) {
+      const g = d3.select(this);
+      const lines = d.label.split("\n");
+      const lineH = 13;
+      const yStart = -(lines.length - 1) * lineH / 2;
+      lines.forEach((line, i) => {
+        g.append("text")
+          .attr("class", i === 0 ? "node-label" : "node-sublabel")
+          .attr("y", yStart + i * lineH)
+          .text(line);
+      });
+    });
+
+    // ── TICK ─────────────────────────────────────────────────────────────────
+    sim.on("tick", () => {
+      // Curved paths
+      paths.attr("d", d => {
+        const sx = d.source.x, sy = d.source.y;
+        const tx = d.target.x, ty = d.target.y;
+        const dx = tx - sx, dy = ty - sy;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const tr = d.target.size + 6; // offset for arrowhead
+        const ex = tx - (dx / dist) * tr;
+        const ey = ty - (dy / dist) * tr;
+        // Slight curve
+        const mx = (sx + tx) / 2 - dy * 0.15;
+        const my = (sy + ty) / 2 + dx * 0.15;
+        return `M${sx},${sy} Q${mx},${my} ${ex},${ey}`;
+      });
+
+      linkLabels.attr("transform", d => {
+        const mx = (d.source.x + d.target.x) / 2 - (d.target.y - d.source.y) * 0.01;
+        const my = (d.source.y + d.target.y) / 2 + (d.target.x - d.source.x) * 0.01;
+        return `translate(${mx},${my})`;
+      });
+
+      nodeSel.attr("transform", d => `translate(${d.x},${d.y})`);
+    });
+
+    // ── TOOLTIP ───────────────────────────────────────────────────────────────
+    const tooltip = document.getElementById("tooltip");
+
+    function handleMouseMove(e, d) {
+      const parents = links.filter(l => (l.target.id || l.target) === d.id);
+      const children = links.filter(l => (l.source.id || l.source) === d.id);
+      const nameMap = Object.fromEntries(nodes.map(n => [n.id, n.label.replace("\n", " ")]));
+
+      let html = `<strong>${d.label.replace("\n", " ")}</strong>`;
+      html += `<div class="tt-row"><span>TYPE</span><span>${d.type.toUpperCase()}</span></div>`;
+      if (parents.length) {
+        parents.forEach(l => {
+          const pid = l.source.id || l.source;
+          html += `<div class="tt-row"><span>PARENT</span><span>${nameMap[pid]} · ${l.ownership}%</span></div>`;
+        });
+      }
+      if (children.length) {
+        children.forEach(l => {
+          const cid = l.target.id || l.target;
+          html += `<div class="tt-row"><span>OWNS</span><span>${nameMap[cid]}${l.ownership > 0 ? " · " + l.ownership + "%" : ""}</span></div>`;
+        });
+      }
+      tooltip.innerHTML = html;
+
+      const bx = wrap.getBoundingClientRect();
+      let left = e.clientX - bx.left + 14;
+      let top = e.clientY - bx.top - 10;
+      if (left + 230 > W) left = e.clientX - bx.left - 230;
+      tooltip.style.left = left + "px";
+      tooltip.style.top = top + "px";
+      tooltip.classList.add("visible");
+    }
+
+    // ── CLICK HIGHLIGHT ───────────────────────────────────────────────────────
+    let selected = null;
+
+    function handleClick(e, d) {
+      e.stopPropagation();
+      if (selected === d.id) {
+        selected = null;
+        nodeSel.classed("dimmed", false).classed("selected", false);
+        paths.classed("dimmed", false);
+        linkLabels.attr("opacity", 1);
+        return;
+      }
+      selected = d.id;
+      const connectedIds = new Set([d.id]);
+      links.forEach(l => {
+        const sid = l.source.id || l.source;
+        const tid = l.target.id || l.target;
+        if (sid === d.id || tid === d.id) { connectedIds.add(sid); connectedIds.add(tid); }
+      });
+
+      nodeSel
+        .classed("dimmed", n => !connectedIds.has(n.id))
+        .classed("selected", n => n.id === d.id);
+
+      paths.classed("dimmed", l => {
+        const sid = l.source.id || l.source;
+        const tid = l.target.id || l.target;
+        return !(sid === d.id || tid === d.id);
+      });
+
+      linkLabels.attr("opacity", l => {
+        const sid = l.source.id || l.source;
+        const tid = l.target.id || l.target;
+        return (sid === d.id || tid === d.id) ? 1 : 0;
+      });
+    }
+
+    svg.on("click", () => {
+      selected = null;
+      nodeSel.classed("dimmed", false).classed("selected", false);
+      paths.classed("dimmed", false);
+      linkLabels.attr("opacity", 1);
+    });
+
+    // ── LOCK & EXPORT ─────────────────────────────────────────────────────────
+    let layoutLocked = false;
+
+    document.getElementById("lockBtn").onclick = () => {
+      layoutLocked = !layoutLocked;
+      const btn = document.getElementById("lockBtn");
+      const bar = document.getElementById("infoBar");
+      if (layoutLocked) {
+        // Freeze every node at its current position
+        nodes.forEach(d => { d.fx = d.x; d.fy = d.y; });
+        sim.alphaTarget(0).stop();
+        btn.style.color = "#4fc3f7";
+        btn.title = "Unlock layout";
+        bar.textContent = "LAYOUT LOCKED · DRAG STILL WORKS · CLICK ⚲ TO UNLOCK";
+      } else {
+        // Release all nodes back to free simulation
+        nodes.forEach(d => { d.fx = null; d.fy = null; });
+        sim.alphaTarget(0.05).restart();
+        btn.style.color = "";
+        btn.title = "Lock layout";
+        bar.textContent = "DRAG TO PAN · SCROLL TO ZOOM · CLICK NODE TO HIGHLIGHT";
+      }
+    };
+
+    document.getElementById("exportBtn").onclick = () => {
+      // Build hardcoded node array with current x/y baked in as fx/fy
+      const cx = W / 2, cy = H / 2; // centre offset for portability
+      const lines = nodes.map(d => {
+        const rx = Math.round((d.x - cx) * 10) / 10;
+        const ry = Math.round((d.y - cy) * 10) / 10;
+        return `  { id: "${d.id}", label: ${JSON.stringify(d.label)}, type: "${d.type}", size: ${d.size}, fx_offset: ${rx}, fy_offset: ${ry} }`;
+      });
+      const out = "// Paste these fx_offset/fy_offset values into your nodes array,\n// then set d.fx = d.fx_offset + W/2 and d.fy = d.fy_offset + H/2 in your init code.\nconst nodes = [\n" + lines.join(",\n") + "\n];";
+      console.log(out);
+      // Also copy to clipboard if possible
+      navigator.clipboard?.writeText(out).then(() => {
+        document.getElementById("infoBar").textContent = "POSITIONS COPIED TO CLIPBOARD ✓";
+        setTimeout(() => {
+          document.getElementById("infoBar").textContent = layoutLocked
+            ? "LAYOUT LOCKED · DRAG STILL WORKS · CLICK ⚲ TO UNLOCK"
+            : "DRAG TO PAN · SCROLL TO ZOOM · CLICK NODE TO HIGHLIGHT";
+        }, 2500);
+      }).catch(() => {
+        document.getElementById("infoBar").textContent = "POSITIONS PRINTED TO BROWSER CONSOLE (F12)";
+        setTimeout(() => {
+          document.getElementById("infoBar").textContent = "DRAG TO PAN · SCROLL TO ZOOM · CLICK NODE TO HIGHLIGHT";
+        }, 3000);
+      });
+    };
+
+    // ── ZOOM CONTROLS ─────────────────────────────────────────────────────────
+    document.getElementById("zoomIn").onclick = () => svg.transition().call(zoom.scaleBy, 1.3);
+    document.getElementById("zoomOut").onclick = () => svg.transition().call(zoom.scaleBy, 0.77);
+    document.getElementById("reset").onclick = () => svg.transition().call(zoom.transform, d3.zoomIdentity.translate(0, 0).scale(1));
+
+    // ── RESIZE ────────────────────────────────────────────────────────────────
+    window.addEventListener("resize", () => {
+      W = wrap.clientWidth; H = wrap.clientHeight;
+      svg.attr("viewBox", `0 0 ${W} ${H}`);
+      sim.force("center", d3.forceCenter(W / 2, H / 2)).alpha(0.1).restart();
+    });
+  </script>
+</body>
+
+</html>
